@@ -6,7 +6,7 @@ let setCounter = 0;
 const contentDiv = document.getElementById('content');
 const sidebar = document.getElementById('sidebar');
 
-// --- 1. TRUE TOGGLE SIDEBAR ---
+// --- 1. SIDEBAR TOGGLE ---
 document.getElementById('toggle-sidebar').addEventListener('click', () => {
     sidebar.classList.toggle('active');
 });
@@ -16,11 +16,11 @@ function renderLogs() {
     const list = document.getElementById('workout-list');
     list.innerHTML = '';
     
-    // Most recent workouts at the top
+    // Most recent workouts at the top for the sidebar view
     const displayList = [...workouts].reverse();
 
     displayList.forEach((w, reversedIndex) => {
-        // Calculate the actual index in the original array
+        // Calculate the actual index in the original array for editing/deleting
         const originalIndex = workouts.length - 1 - reversedIndex;
         
         const li = document.createElement('li');
@@ -58,22 +58,20 @@ window.toggleLogDetail = function(index) {
 }
 
 window.deleteWorkout = function(index) {
-    if(confirm("Permanently delete this workout?")) {
+    if(confirm("Permanently delete this workout log?")) {
         workouts.splice(index, 1);
         saveAndRefresh();
     }
 }
 
-// --- 3. FULL IN-APP EDITING (NO POP-UPS) ---
+// --- 3. EDIT MODE (IN-APP SUITE) ---
 window.openEditMode = function(index) {
-    // Close sidebar so we can see the edit screen
     sidebar.classList.remove('active');
-    
     const w = workouts[index];
     
     let html = `
         <div class="edit-container">
-            <h2>Edit Workout Details</h2>
+            <h2>Edit Workout</h2>
             <label>Workout Title</label>
             <input type="text" id="edit-w-title" value="${w.title}">
             <hr>
@@ -96,7 +94,7 @@ window.openEditMode = function(index) {
                     </div>
                 </div>
 
-                <label>Reps (Separate by commas)</label>
+                <label>Reps (Comma separated)</label>
                 <input type="text" id="edit-ex-reps-${exIdx}" value="${ex.setsDone.join(', ')}">
             </div>
         `;
@@ -119,8 +117,6 @@ window.saveAllEdits = function(index) {
         ex.name = document.getElementById(`edit-ex-name-${exIdx}`).value;
         ex.weight = document.getElementById(`edit-ex-weight-${exIdx}`).value;
         ex.restTime = document.getElementById(`edit-ex-rest-${exIdx}`).value;
-        
-        // Clean up the comma-separated reps string into an array
         const repInput = document.getElementById(`edit-ex-reps-${exIdx}`).value;
         ex.setsDone = repInput.split(',').map(item => item.trim()).filter(item => item !== "");
     });
@@ -129,7 +125,7 @@ window.saveAllEdits = function(index) {
     renderHome();
 }
 
-// --- 4. CORE APP FLOW ---
+// --- 4. CORE APP FLOW & CANCEL LOGIC ---
 function saveAndRefresh() {
     localStorage.setItem('workouts', JSON.stringify(workouts));
     renderLogs();
@@ -149,8 +145,9 @@ window.startWorkout = function() {
     currentWorkout = { title: '', exercises: [], date: '', time: '' };
     contentDiv.innerHTML = `
         <h3>Workout Name</h3>
-        <input type="text" id="w-title" placeholder="e.g. Leg Day" autofocus>
+        <input type="text" id="w-title" placeholder="e.g. Push Day" autofocus>
         <button class="btn" onclick="setupExercise()">Next</button>
+        <button class="btn btn-secondary" onclick="renderHome()">Back</button>
     `;
 }
 
@@ -160,11 +157,12 @@ window.setupExercise = function() {
     }
     contentDiv.innerHTML = `
         <h3>Add Exercise</h3>
-        <input type="text" id="e-name" placeholder="Name (e.g. Squat)">
+        <input type="text" id="e-name" placeholder="Exercise Name">
         <input type="number" id="e-weight" placeholder="Weight (lbs)">
         <input type="number" id="e-sets" placeholder="Number of Sets">
         <input type="number" step="0.1" id="e-rest" placeholder="Rest (minutes)">
         <button class="btn" onclick="beginSets()">Start Movement</button>
+        <button class="btn btn-secondary" onclick="cancelWorkout()">Cancel Workout</button>
     `;
 }
 
@@ -188,6 +186,7 @@ function renderActiveSet() {
             <p class="rest-hint">Rest Target: ${currentExercise.restTime} min</p>
             <input type="number" id="reps-done" placeholder="Reps performed" autofocus>
             <button class="btn" onclick="submitSet()">Complete Set</button>
+            <button class="btn btn-secondary" style="margin-top: 10px;" onclick="cancelWorkout()">Cancel Workout</button>
         </div>
     `;
 }
@@ -210,7 +209,16 @@ function finishExercise() {
         <h2>Exercise Complete!</h2>
         <button class="btn" onclick="setupExercise()">Add Another Movement</button>
         <button class="btn btn-secondary" onclick="finishWorkout()">Finish & Log Workout</button>
+        <button class="btn btn-secondary" style="background-color: #662222; margin-top: 20px;" onclick="cancelWorkout()">Discard Workout</button>
     `;
+}
+
+window.cancelWorkout = function() {
+    if(confirm("Discard this current workout? Progress will not be saved.")) {
+        currentWorkout = null;
+        currentExercise = null;
+        renderHome();
+    }
 }
 
 window.finishWorkout = function() {
@@ -223,5 +231,5 @@ window.finishWorkout = function() {
     renderHome();
 }
 
-// Initial Launch
+// Initial Boot
 renderHome();
