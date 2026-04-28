@@ -66,3 +66,13 @@ button.btn-secondary { background-color: #444; color: white; }
     padding: 8px;
     font-size: 0.9rem;
 }
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: var(--primary);
+}
+
+.edit-ex-block input {
+    margin-bottom: 10px;
+}
