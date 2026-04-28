@@ -20,3 +20,22 @@ self.addEventListener('fetch', event => {
         })
     );
 });
+.log-header {
+    cursor: pointer;
+    padding: 5px 0;
+}
+
+.log-details {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #444;
+    font-size: 0.85rem;
+    color: #bbb;
+}
+
+.ex-detail {
+    margin-bottom: 8px;
+    background: #252525;
+    padding: 5px;
+    border-radius: 4px;
+}
