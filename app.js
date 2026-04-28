@@ -16,6 +16,9 @@ function renderLogs() {
     const list = document.getElementById('workout-list');
     list.innerHTML = '';
     
+    // Sort newest to oldest
+    const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time));
+
     workouts.forEach((w, index) => {
         const li = document.createElement('li');
         li.className = 'workout-log-item';
@@ -27,7 +30,7 @@ function renderLogs() {
                     <small>${w.date}</small>
                 </div>
                 <div class="log-actions">
-                    <button class="icon-btn edit-btn" onclick="editWorkout(${index})">✏️</button>
+                    <button class="icon-btn edit-btn" onclick="openEditMode(${index})">✏️</button>
                     <button class="icon-btn trash-btn" onclick="deleteWorkout(${index})">🗑️</button>
                 </div>
             </div>
@@ -57,12 +60,64 @@ window.deleteWorkout = function(index) {
     }
 }
 
-window.editWorkout = function(index) {
-    const newTitle = prompt("Enter new title:", workouts[index].title);
-    if (newTitle !== null) {
-        workouts[index].title = newTitle;
-        saveAndRefresh();
-    }
+// --- FULL EDIT MODE LOGIC ---
+
+window.openEditMode = function(index) {
+    sidebar.classList.remove('active'); // Close sidebar to focus on edit
+    const w = workouts[index];
+    
+    let editHTML = `
+        <h2>Edit Workout</h2>
+        <label>Workout Title</label>
+        <input type="text" id="edit-title" value="${w.title}">
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #444;">
+    `;
+
+    w.exercises.forEach((ex, exIdx) => {
+        editHTML += `
+            <div class="edit-ex-block" style="background:#252525; padding:15px; border-radius:8px; margin-bottom:15px;">
+                <label>Movement Name</label>
+                <input type="text" id="edit-ex-name-${exIdx}" value="${ex.name}">
+                <div style="display:flex; gap:10px;">
+                    <div>
+                        <label><small>Weight (lbs)</small></label>
+                        <input type="number" id="edit-ex-weight-${exIdx}" value="${ex.weight}">
+                    </div>
+                    <div>
+                        <label><small>Rest (min)</small></label>
+                        <input type="number" step="0.1" id="edit-ex-rest-${exIdx}" value="${ex.restTime}">
+                    </div>
+                </div>
+                <label><small>Reps (comma separated)</small></label>
+                <input type="text" id="edit-ex-reps-${exIdx}" value="${ex.setsDone.join(',')}">
+            </div>
+        `;
+    });
+
+    editHTML += `
+        <button class="btn" onclick="saveWorkoutChanges(${index})">Save Changes</button>
+        <button class="btn btn-secondary" onclick="renderHome()">Cancel</button>
+    `;
+
+    contentDiv.innerHTML = editHTML;
+}
+
+window.saveWorkoutChanges = function(index) {
+    const w = workouts[index];
+    w.title = document.getElementById('edit-title').value;
+
+    w.exercises.forEach((ex, exIdx) => {
+        ex.name = document.getElementById(`edit-ex-name-${exIdx}`).value;
+        ex.weight = document.getElementById(`edit-ex-weight-${exIdx}`).value;
+        ex.restTime = document.getElementById(`edit-ex-rest-${exIdx}`).value;
+        
+        // Convert comma string back to array of numbers
+        const repsString = document.getElementById(`edit-ex-reps-${exIdx}`).value;
+        ex.setsDone = repsString.split(',').map(r => r.trim());
+    });
+
+    saveAndRefresh();
+    renderHome();
 }
 
 function saveAndRefresh() {
@@ -70,7 +125,7 @@ function saveAndRefresh() {
     renderLogs();
 }
 
-// --- WORKOUT FLOW (NO TIMER) ---
+// --- WORKOUT FLOW ---
 
 function renderHome() {
     contentDiv.innerHTML = `<button class="btn" onclick="startWorkout()">Start Workout</button>`;
@@ -117,7 +172,7 @@ function renderActiveSet() {
         <h2>${currentExercise.name}</h2>
         <p>Set ${setCounter} of ${currentExercise.targetSets}</p>
         <p>Target Rest: ${currentExercise.restTime} min</p>
-        <input type="number" id="reps-done" placeholder="Reps completed for this set">
+        <input type="number" id="reps-done" placeholder="Reps completed">
         <button class="btn" onclick="nextStep()">Submit Set</button>
     `;
 }
