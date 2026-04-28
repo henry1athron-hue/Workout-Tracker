@@ -1,11 +1,9 @@
-/* Workout Tracker - CSS */
 :root {
     --bg-dark: #121212;
     --surface: #1e1e1e;
     --primary: #bb86fc;
     --text: #ffffff;
-    /* This sets the height of our fixed header */
-    --header-height: 70px; 
+    --header-height: 60px;
 }
 
 * { 
@@ -19,10 +17,11 @@ body {
     background-color: var(--bg-dark); 
     color: var(--text); 
     height: 100vh; 
-    overflow: hidden; /* Important for PWA feel */
+    display: flex;
+    flex-direction: column;
 }
 
-/* --- 1. FIXED TOP HEADER --- */
+/* --- FIXED HEADER --- */
 header {
     position: fixed;
     top: 0;
@@ -33,86 +32,49 @@ header {
     display: flex;
     align-items: center;
     padding: 0 15px;
-    z-index: 1000; /* Stays on top of everything */
+    z-index: 2000; /* Highest priority: always on top */
     border-bottom: 1px solid #333;
 }
 
-header button {
-    background: none;
-    border: none;
-    color: var(--text);
-    font-size: 1.2rem;
+/* Toggle Button - Ensures it stays in the corner */
+#toggle-sidebar {
+    background: #333;
+    border: 1px solid #444;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-right: 15px;
     cursor: pointer;
-    margin-right: 15px; /* Pushes 'Tracker' over */
 }
 
-header h1 {
-    font-size: 1.5rem;
-}
-
-/* --- 2. THE SLIDING SIDEBAR --- */
+/* --- SIDEBAR (SCROLLABLE) --- */
 .sidebar {
     width: 280px;
     background-color: var(--surface);
     position: fixed;
-    top: var(--header-height); /* Starts below the header */
+    top: 0;
     left: 0;
-    height: calc(100vh - var(--header-height)); /* Fills remaining height */
-    transform: translateX(-100%); /* Start closed */
+    bottom: 0;
+    padding: calc(var(--header-height) + 20px) 20px 20px 20px;
+    transform: translateX(-100%);
     transition: transform 0.3s ease;
-    z-index: 500; /* Stays under the main 'Tracker' header */
-    padding: 20px;
+    z-index: 1000; /* Under the header button, but over content */
     border-right: 1px solid #333;
-    overflow-y: auto; /* Handles many logs */
+    overflow-y: auto; /* ALLOWS SCROLLING */
+    -webkit-overflow-scrolling: touch; /* Smooth scroll on iPhone */
 }
 
-/* When the 'active' class is added via JS, this moves it to 0 (visible) */
-.sidebar.active { 
-    transform: translateX(0); 
-}
+.sidebar.active { transform: translateX(0); }
 
-.sidebar h2 {
-    margin-bottom: 20px;
-    font-size: 1.2rem;
-    color: #888;
-}
-
-.sidebar ul {
-    list-style: none;
-}
-
-/* --- 3. MAIN CONTENT AREA --- */
+/* --- MAIN CONTENT --- */
 #content {
-    /* Pushes content down so it's not hidden under the fixed header */
-    padding-top: calc(var(--header-height) + 20px); 
-    padding-left: 20px;
-    padding-right: 20px;
-    padding-bottom: 20px;
-    height: 100vh;
+    margin-top: var(--header-height);
+    padding: 20px;
+    flex: 1;
     overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
 }
 
-/* --- 4. FORMS & INPUTS --- */
-input, select {
-    width: 100%;
-    padding: 15px;
-    margin-bottom: 15px;
-    background: #333;
-    border: 1px solid #444;
-    color: white;
-    border-radius: 8px;
-    font-size: 1rem;
-}
-
-/* Fix for PWA focusing on iPhone - ensures the viewport doesn't zoom in */
-input:focus {
-    font-size: 16px; 
-}
-
-/* --- 5. LARGE TAP TARGET BUTTONS --- */
+/* --- BUTTONS & LOGS --- */
 button.btn {
     width: 100%;
     padding: 15px;
@@ -122,102 +84,47 @@ button.btn {
     border-radius: 8px;
     font-size: 1.1rem;
     font-weight: bold;
-    cursor: pointer;
     margin-bottom: 10px;
 }
 
-button.btn-secondary {
-    background-color: #444;
-    color: white;
-}
-
-/* --- 6. WORKOUT LOG LOGIC (SIDEBAR) --- */
 .workout-log-item {
-    position: relative;
+    background: #2a2a2a;
     padding: 15px;
-    background: #333;
-    margin-bottom: 15px;
+    margin-bottom: 12px;
     border-radius: 8px;
-    border-left: 3px solid transparent;
-    transition: background 0.2s;
-}
-
-.workout-log-item:active {
-    background: #3d3d3d; /* Tactile feedback on mobile */
-}
-
-.workout-log-item:hover {
-    border-left: 3px solid var(--primary);
 }
 
 .log-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    cursor: pointer;
 }
 
-.log-header strong {
-    font-size: 1.1rem;
-}
-
-.log-header small {
-    color: #aaa;
-}
-
-/* Sidebar action icons (edit/trash) */
 .log-actions {
     display: flex;
     gap: 15px;
 }
 
-.icon-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1.3rem; /* Larger tap targets */
-    padding: 5px;
-    display: flex;
-    align-items: center;
+/* Input fix for iPhone zoom */
+input {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0;
+    background: #111;
+    color: white;
+    border: 1px solid #444;
+    border-radius: 6px;
+    font-size: 16px; 
 }
 
-.trash-btn { color: #ff5252; opacity: 0.7; }
-.edit-btn { color: #448aff; opacity: 0.7; }
-
-.trash-btn:hover, .edit-btn:hover { opacity: 1; }
-
-/* The dropdown detail area */
-.log-details {
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px solid #444;
-    font-size: 0.85rem;
-    color: #bbb;
-}
-
-.ex-detail {
-    margin-bottom: 8px;
-    background: #252525;
-    padding: 8px;
-    border-radius: 4px;
-}
-
-/* --- 7. MISC UI ELEMENTS --- */
+/* Welcome Screen */
 .welcome-screen {
-    text-align: center;
-    padding-top: 50px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 60vh;
 }
-
-.welcome-screen h1 {
-    font-size: 3rem;
-    margin-bottom: 20px;
-    color: var(--primary);
-}
-
-.edit-ex-block label {
-    display: block;
-    font-size: 0.8rem;
-    color: #888;
     margin-bottom: 5px;
     margin-top: 10px;
 }
