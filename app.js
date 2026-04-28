@@ -6,35 +6,38 @@ let setCounter = 0;
 const contentDiv = document.getElementById('content');
 const sidebar = document.getElementById('sidebar');
 
+// --- 1. TRUE TOGGLE SIDEBAR ---
 document.getElementById('toggle-sidebar').addEventListener('click', () => {
     sidebar.classList.toggle('active');
 });
 
-// --- SIDEBAR & LOG LOGIC ---
-
+// --- 2. SIDEBAR RENDERING ---
 function renderLogs() {
     const list = document.getElementById('workout-list');
     list.innerHTML = '';
     
-    // Sort newest to oldest
-    const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time));
+    // Most recent workouts at the top
+    const displayList = [...workouts].reverse();
 
-    workouts.forEach((w, index) => {
+    displayList.forEach((w, reversedIndex) => {
+        // Calculate the actual index in the original array
+        const originalIndex = workouts.length - 1 - reversedIndex;
+        
         const li = document.createElement('li');
         li.className = 'workout-log-item';
         
         li.innerHTML = `
             <div class="log-header">
-                <div onclick="toggleLogDetail(${index})" style="flex-grow:1">
+                <div onclick="toggleLogDetail(${originalIndex})" style="flex-grow:1">
                     <strong>${w.title}</strong><br>
                     <small>${w.date}</small>
                 </div>
                 <div class="log-actions">
-                    <button class="icon-btn edit-btn" onclick="openEditMode(${index})">✏️</button>
-                    <button class="icon-btn trash-btn" onclick="deleteWorkout(${index})">🗑️</button>
+                    <button class="icon-btn edit-btn" onclick="openEditMode(${originalIndex})">✏️</button>
+                    <button class="icon-btn trash-btn" onclick="deleteWorkout(${originalIndex})">🗑️</button>
                 </div>
             </div>
-            <div id="log-detail-${index}" class="log-details" style="display:none; margin-top:10px;">
+            <div id="log-detail-${originalIndex}" class="log-details" style="display:none; margin-top:10px;">
                 ${w.exercises.map(ex => `
                     <div class="ex-detail">
                         <strong>${ex.name}</strong><br>
@@ -50,93 +53,103 @@ function renderLogs() {
 
 window.toggleLogDetail = function(index) {
     const detailDiv = document.getElementById(`log-detail-${index}`);
-    detailDiv.style.display = detailDiv.style.display === 'none' ? 'block' : 'none';
+    const isHidden = detailDiv.style.display === 'none';
+    detailDiv.style.display = isHidden ? 'block' : 'none';
 }
 
 window.deleteWorkout = function(index) {
-    if(confirm("Delete this workout log?")) {
+    if(confirm("Permanently delete this workout?")) {
         workouts.splice(index, 1);
         saveAndRefresh();
     }
 }
 
-// --- FULL EDIT MODE LOGIC ---
-
+// --- 3. FULL IN-APP EDITING (NO POP-UPS) ---
 window.openEditMode = function(index) {
-    sidebar.classList.remove('active'); // Close sidebar to focus on edit
+    // Close sidebar so we can see the edit screen
+    sidebar.classList.remove('active');
+    
     const w = workouts[index];
     
-    let editHTML = `
-        <h2>Edit Workout</h2>
-        <label>Workout Title</label>
-        <input type="text" id="edit-title" value="${w.title}">
-        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #444;">
+    let html = `
+        <div class="edit-container">
+            <h2>Edit Workout Details</h2>
+            <label>Workout Title</label>
+            <input type="text" id="edit-w-title" value="${w.title}">
+            <hr>
     `;
 
     w.exercises.forEach((ex, exIdx) => {
-        editHTML += `
-            <div class="edit-ex-block" style="background:#252525; padding:15px; border-radius:8px; margin-bottom:15px;">
-                <label>Movement Name</label>
+        html += `
+            <div class="edit-card">
+                <label>Exercise Name</label>
                 <input type="text" id="edit-ex-name-${exIdx}" value="${ex.name}">
+                
                 <div style="display:flex; gap:10px;">
-                    <div>
-                        <label><small>Weight (lbs)</small></label>
+                    <div style="flex:1">
+                        <label>Weight</label>
                         <input type="number" id="edit-ex-weight-${exIdx}" value="${ex.weight}">
                     </div>
-                    <div>
-                        <label><small>Rest (min)</small></label>
+                    <div style="flex:1">
+                        <label>Rest (m)</label>
                         <input type="number" step="0.1" id="edit-ex-rest-${exIdx}" value="${ex.restTime}">
                     </div>
                 </div>
-                <label><small>Reps (comma separated)</small></label>
-                <input type="text" id="edit-ex-reps-${exIdx}" value="${ex.setsDone.join(',')}">
+
+                <label>Reps (Separate by commas)</label>
+                <input type="text" id="edit-ex-reps-${exIdx}" value="${ex.setsDone.join(', ')}">
             </div>
         `;
     });
 
-    editHTML += `
-        <button class="btn" onclick="saveWorkoutChanges(${index})">Save Changes</button>
-        <button class="btn btn-secondary" onclick="renderHome()">Cancel</button>
+    html += `
+            <button class="btn" onclick="saveAllEdits(${index})">Save Changes</button>
+            <button class="btn btn-secondary" onclick="renderHome()">Cancel</button>
+        </div>
     `;
 
-    contentDiv.innerHTML = editHTML;
+    contentDiv.innerHTML = html;
 }
 
-window.saveWorkoutChanges = function(index) {
+window.saveAllEdits = function(index) {
     const w = workouts[index];
-    w.title = document.getElementById('edit-title').value;
+    w.title = document.getElementById('edit-w-title').value;
 
     w.exercises.forEach((ex, exIdx) => {
         ex.name = document.getElementById(`edit-ex-name-${exIdx}`).value;
         ex.weight = document.getElementById(`edit-ex-weight-${exIdx}`).value;
         ex.restTime = document.getElementById(`edit-ex-rest-${exIdx}`).value;
         
-        // Convert comma string back to array of numbers
-        const repsString = document.getElementById(`edit-ex-reps-${exIdx}`).value;
-        ex.setsDone = repsString.split(',').map(r => r.trim());
+        // Clean up the comma-separated reps string into an array
+        const repInput = document.getElementById(`edit-ex-reps-${exIdx}`).value;
+        ex.setsDone = repInput.split(',').map(item => item.trim()).filter(item => item !== "");
     });
 
     saveAndRefresh();
     renderHome();
 }
 
+// --- 4. CORE APP FLOW ---
 function saveAndRefresh() {
     localStorage.setItem('workouts', JSON.stringify(workouts));
     renderLogs();
 }
 
-// --- WORKOUT FLOW ---
-
 function renderHome() {
-    contentDiv.innerHTML = `<button class="btn" onclick="startWorkout()">Start Workout</button>`;
+    contentDiv.innerHTML = `
+        <div class="welcome-screen">
+            <h1>Ready?</h1>
+            <button class="btn" onclick="startWorkout()">Start New Workout</button>
+        </div>
+    `;
     renderLogs();
 }
 
 window.startWorkout = function() {
     currentWorkout = { title: '', exercises: [], date: '', time: '' };
     contentDiv.innerHTML = `
-        <h3>New Workout</h3>
-        <input type="text" id="w-title" placeholder="Workout Title">
+        <h3>Workout Name</h3>
+        <input type="text" id="w-title" placeholder="e.g. Leg Day" autofocus>
         <button class="btn" onclick="setupExercise()">Next</button>
     `;
 }
@@ -146,11 +159,11 @@ window.setupExercise = function() {
         currentWorkout.title = document.getElementById('w-title').value || 'Untitled Workout';
     }
     contentDiv.innerHTML = `
-        <h3>Add Movement</h3>
-        <input type="text" id="e-name" placeholder="Movement Name">
+        <h3>Add Exercise</h3>
+        <input type="text" id="e-name" placeholder="Name (e.g. Squat)">
         <input type="number" id="e-weight" placeholder="Weight (lbs)">
         <input type="number" id="e-sets" placeholder="Number of Sets">
-        <input type="number" step="0.5" id="e-rest" placeholder="Rest Time (minutes)">
+        <input type="number" step="0.1" id="e-rest" placeholder="Rest (minutes)">
         <button class="btn" onclick="beginSets()">Start Movement</button>
     `;
 }
@@ -169,15 +182,17 @@ window.beginSets = function() {
 
 function renderActiveSet() {
     contentDiv.innerHTML = `
-        <h2>${currentExercise.name}</h2>
-        <p>Set ${setCounter} of ${currentExercise.targetSets}</p>
-        <p>Target Rest: ${currentExercise.restTime} min</p>
-        <input type="number" id="reps-done" placeholder="Reps completed">
-        <button class="btn" onclick="nextStep()">Submit Set</button>
+        <div class="set-tracker">
+            <h2>${currentExercise.name}</h2>
+            <p class="set-info">Set ${setCounter} of ${currentExercise.targetSets}</p>
+            <p class="rest-hint">Rest Target: ${currentExercise.restTime} min</p>
+            <input type="number" id="reps-done" placeholder="Reps performed" autofocus>
+            <button class="btn" onclick="submitSet()">Complete Set</button>
+        </div>
     `;
 }
 
-window.nextStep = function() {
+window.submitSet = function() {
     let reps = document.getElementById('reps-done').value || 0;
     currentExercise.setsDone.push(reps);
 
@@ -192,9 +207,9 @@ window.nextStep = function() {
 function finishExercise() {
     currentWorkout.exercises.push(currentExercise);
     contentDiv.innerHTML = `
-        <h2>Exercise Done!</h2>
-        <button class="btn" onclick="setupExercise()">Add Another Exercise</button>
-        <button class="btn btn-secondary" onclick="finishWorkout()">Finish Workout</button>
+        <h2>Exercise Complete!</h2>
+        <button class="btn" onclick="setupExercise()">Add Another Movement</button>
+        <button class="btn btn-secondary" onclick="finishWorkout()">Finish & Log Workout</button>
     `;
 }
 
@@ -208,4 +223,5 @@ window.finishWorkout = function() {
     renderHome();
 }
 
+// Initial Launch
 renderHome();
