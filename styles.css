@@ -76,3 +76,45 @@ label {
 .edit-ex-block input {
     margin-bottom: 10px;
 }
+/* Sidebar Toggle Improvements */
+.sidebar {
+    /* Ensure sidebar is high enough to cover the screen */
+    z-index: 100;
+}
+
+/* Edit Suite Styles */
+.edit-card {
+    background: #2a2a2a;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border-left: 4px solid var(--primary);
+}
+
+.edit-container h2 {
+    margin-bottom: 20px;
+}
+
+.edit-container label {
+    font-size: 0.8rem;
+    color: var(--primary);
+    margin-top: 10px;
+}
+
+hr {
+    border: 0;
+    border-top: 1px solid #444;
+    margin: 20px 0;
+}
+
+/* Set Tracker Layout */
+.set-info {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.rest-hint {
+    color: #888;
+    margin-bottom: 20px;
+}
