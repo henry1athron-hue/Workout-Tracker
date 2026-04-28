@@ -1,39 +1,42 @@
-// State Management
 let workouts = JSON.parse(localStorage.getItem('workouts')) || [];
 let currentWorkout = null;
 let currentExercise = null;
 let setCounter = 0;
-let restTimer = null;
 
 const contentDiv = document.getElementById('content');
 const sidebar = document.getElementById('sidebar');
 
-// Sidebar Toggle
 document.getElementById('toggle-sidebar').addEventListener('click', () => {
     sidebar.classList.toggle('active');
 });
 
-// Render Sidebar Logs with Dropdown Detail
+// --- SIDEBAR & LOG LOGIC ---
+
 function renderLogs() {
     const list = document.getElementById('workout-list');
     list.innerHTML = '';
     
-    // Reverse so newest is on top
-    [...workouts].reverse().forEach((w, index) => {
+    workouts.forEach((w, index) => {
         const li = document.createElement('li');
         li.className = 'workout-log-item';
         
-        // Header of the log entry
         li.innerHTML = `
-            <div class="log-header" onclick="toggleLogDetail(${index})">
-                <strong>${w.title}</strong><br>
-                <small>${w.date} at ${w.time}</small>
+            <div class="log-header">
+                <div onclick="toggleLogDetail(${index})" style="flex-grow:1">
+                    <strong>${w.title}</strong><br>
+                    <small>${w.date}</small>
+                </div>
+                <div class="log-actions">
+                    <button class="icon-btn edit-btn" onclick="editWorkout(${index})">✏️</button>
+                    <button class="icon-btn trash-btn" onclick="deleteWorkout(${index})">🗑️</button>
+                </div>
             </div>
-            <div id="log-detail-${index}" class="log-details" style="display:none;">
+            <div id="log-detail-${index}" class="log-details" style="display:none; margin-top:10px;">
                 ${w.exercises.map(ex => `
                     <div class="ex-detail">
-                        <strong>${ex.name} @ ${ex.weight}lbs</strong><br>
-                        <span>Sets: ${ex.setsDone.join(', ')}</span>
+                        <strong>${ex.name}</strong><br>
+                        ${ex.weight}lbs | Rest: ${ex.restTime}m<br>
+                        Reps: ${ex.setsDone.join(', ')}
                     </div>
                 `).join('')}
             </div>
@@ -42,13 +45,32 @@ function renderLogs() {
     });
 }
 
-// Function to expand/collapse log details
 window.toggleLogDetail = function(index) {
     const detailDiv = document.getElementById(`log-detail-${index}`);
     detailDiv.style.display = detailDiv.style.display === 'none' ? 'block' : 'none';
 }
 
-// --- REST OF THE FUNCTIONS REMAIN THE SAME ---
+window.deleteWorkout = function(index) {
+    if(confirm("Delete this workout log?")) {
+        workouts.splice(index, 1);
+        saveAndRefresh();
+    }
+}
+
+window.editWorkout = function(index) {
+    const newTitle = prompt("Enter new title:", workouts[index].title);
+    if (newTitle !== null) {
+        workouts[index].title = newTitle;
+        saveAndRefresh();
+    }
+}
+
+function saveAndRefresh() {
+    localStorage.setItem('workouts', JSON.stringify(workouts));
+    renderLogs();
+}
+
+// --- WORKOUT FLOW (NO TIMER) ---
 
 function renderHome() {
     contentDiv.innerHTML = `<button class="btn" onclick="startWorkout()">Start Workout</button>`;
@@ -59,7 +81,7 @@ window.startWorkout = function() {
     currentWorkout = { title: '', exercises: [], date: '', time: '' };
     contentDiv.innerHTML = `
         <h3>New Workout</h3>
-        <input type="text" id="w-title" placeholder="Workout Title (e.g., Pull Day)" required>
+        <input type="text" id="w-title" placeholder="Workout Title">
         <button class="btn" onclick="setupExercise()">Next</button>
     `;
 }
@@ -71,19 +93,19 @@ window.setupExercise = function() {
     contentDiv.innerHTML = `
         <h3>Add Movement</h3>
         <input type="text" id="e-name" placeholder="Movement Name">
-        <input type="number" id="e-weight" placeholder="Weight">
-        <input type="number" id="e-sets" placeholder="Total Sets">
-        <input type="number" id="e-rest" placeholder="Rest Time (seconds)">
+        <input type="number" id="e-weight" placeholder="Weight (lbs)">
+        <input type="number" id="e-sets" placeholder="Number of Sets">
+        <input type="number" step="0.5" id="e-rest" placeholder="Rest Time (minutes)">
         <button class="btn" onclick="beginSets()">Start Movement</button>
     `;
 }
 
 window.beginSets = function() {
     currentExercise = {
-        name: document.getElementById('e-name').value,
-        weight: document.getElementById('e-weight').value,
-        targetSets: parseInt(document.getElementById('e-sets').value),
-        restTime: parseInt(document.getElementById('e-rest').value),
+        name: document.getElementById('e-name').value || "Exercise",
+        weight: document.getElementById('e-weight').value || 0,
+        targetSets: parseInt(document.getElementById('e-sets').value) || 1,
+        restTime: document.getElementById('e-rest').value || 0,
         setsDone: []
     };
     setCounter = 1;
@@ -93,38 +115,14 @@ window.beginSets = function() {
 function renderActiveSet() {
     contentDiv.innerHTML = `
         <h2>${currentExercise.name}</h2>
-        <p>Weight: ${currentExercise.weight} | Set: ${setCounter} / ${currentExercise.targetSets}</p>
-        <button class="btn" onclick="completeSet()">Set Completed</button>
+        <p>Set ${setCounter} of ${currentExercise.targetSets}</p>
+        <p>Target Rest: ${currentExercise.restTime} min</p>
+        <input type="number" id="reps-done" placeholder="Reps completed for this set">
+        <button class="btn" onclick="nextStep()">Submit Set</button>
     `;
 }
 
-window.completeSet = function() {
-    let timeLeft = currentExercise.restTime;
-    contentDiv.innerHTML = `
-        <h2>Rest!</h2>
-        <div class="timer-display" id="timer">${timeLeft}</div>
-        <p>Log reps for Set ${setCounter}:</p>
-        <input type="number" id="reps-done" placeholder="Reps completed" autofocus>
-        <button class="btn btn-secondary" onclick="skipRest()">Skip Timer</button>
-    `;
-
-    restTimer = setInterval(() => {
-        timeLeft--;
-        const timerEl = document.getElementById('timer');
-        if(timerEl) timerEl.innerText = timeLeft;
-        if (timeLeft <= 0) {
-            clearInterval(restTimer);
-            handleRestFinished();
-        }
-    }, 1000);
-}
-
-window.skipRest = function() {
-    clearInterval(restTimer);
-    handleRestFinished();
-}
-
-function handleRestFinished() {
+window.nextStep = function() {
     let reps = document.getElementById('reps-done').value || 0;
     currentExercise.setsDone.push(reps);
 
@@ -139,7 +137,7 @@ function handleRestFinished() {
 function finishExercise() {
     currentWorkout.exercises.push(currentExercise);
     contentDiv.innerHTML = `
-        <h2>Movement Complete!</h2>
+        <h2>Exercise Done!</h2>
         <button class="btn" onclick="setupExercise()">Add Another Exercise</button>
         <button class="btn btn-secondary" onclick="finishWorkout()">Finish Workout</button>
     `;
@@ -151,8 +149,7 @@ window.finishWorkout = function() {
     currentWorkout.time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
     workouts.push(currentWorkout);
-    localStorage.setItem('workouts', JSON.stringify(workouts));
-    
+    saveAndRefresh();
     renderHome();
 }
 
