@@ -13,24 +13,48 @@ document.getElementById('toggle-sidebar').addEventListener('click', () => {
     sidebar.classList.toggle('active');
 });
 
-// Render Sidebar Logs
+// Render Sidebar Logs with Dropdown Detail
 function renderLogs() {
     const list = document.getElementById('workout-list');
     list.innerHTML = '';
-    workouts.forEach(w => {
+    
+    // Reverse so newest is on top
+    [...workouts].reverse().forEach((w, index) => {
         const li = document.createElement('li');
-        li.innerHTML = `<strong>${w.title}</strong><br>${w.date} ${w.time}`;
+        li.className = 'workout-log-item';
+        
+        // Header of the log entry
+        li.innerHTML = `
+            <div class="log-header" onclick="toggleLogDetail(${index})">
+                <strong>${w.title}</strong><br>
+                <small>${w.date} at ${w.time}</small>
+            </div>
+            <div id="log-detail-${index}" class="log-details" style="display:none;">
+                ${w.exercises.map(ex => `
+                    <div class="ex-detail">
+                        <strong>${ex.name} @ ${ex.weight}lbs</strong><br>
+                        <span>Sets: ${ex.setsDone.join(', ')}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
         list.appendChild(li);
     });
 }
 
-// 1. Home Screen
+// Function to expand/collapse log details
+window.toggleLogDetail = function(index) {
+    const detailDiv = document.getElementById(`log-detail-${index}`);
+    detailDiv.style.display = detailDiv.style.display === 'none' ? 'block' : 'none';
+}
+
+// --- REST OF THE FUNCTIONS REMAIN THE SAME ---
+
 function renderHome() {
     contentDiv.innerHTML = `<button class="btn" onclick="startWorkout()">Start Workout</button>`;
     renderLogs();
 }
 
-// 2. Start Workout
 window.startWorkout = function() {
     currentWorkout = { title: '', exercises: [], date: '', time: '' };
     contentDiv.innerHTML = `
@@ -40,7 +64,6 @@ window.startWorkout = function() {
     `;
 }
 
-// 3. Setup Exercise
 window.setupExercise = function() {
     if(document.getElementById('w-title')) {
         currentWorkout.title = document.getElementById('w-title').value || 'Untitled Workout';
@@ -55,7 +78,6 @@ window.setupExercise = function() {
     `;
 }
 
-// 4. Begin Sets Loop
 window.beginSets = function() {
     currentExercise = {
         name: document.getElementById('e-name').value,
@@ -68,7 +90,6 @@ window.beginSets = function() {
     renderActiveSet();
 }
 
-// 5. Active Set View
 function renderActiveSet() {
     contentDiv.innerHTML = `
         <h2>${currentExercise.name}</h2>
@@ -77,21 +98,20 @@ function renderActiveSet() {
     `;
 }
 
-// 6. Complete Set & Start Rest Timer (Allows typing reps while resting)
 window.completeSet = function() {
     let timeLeft = currentExercise.restTime;
-    
     contentDiv.innerHTML = `
         <h2>Rest!</h2>
         <div class="timer-display" id="timer">${timeLeft}</div>
         <p>Log reps for Set ${setCounter}:</p>
-        <input type="number" id="reps-done" placeholder="Reps completed">
+        <input type="number" id="reps-done" placeholder="Reps completed" autofocus>
         <button class="btn btn-secondary" onclick="skipRest()">Skip Timer</button>
     `;
 
     restTimer = setInterval(() => {
         timeLeft--;
-        document.getElementById('timer').innerText = timeLeft;
+        const timerEl = document.getElementById('timer');
+        if(timerEl) timerEl.innerText = timeLeft;
         if (timeLeft <= 0) {
             clearInterval(restTimer);
             handleRestFinished();
@@ -99,26 +119,23 @@ window.completeSet = function() {
     }, 1000);
 }
 
-// 7. Handle Rest Finish (or Skip)
 window.skipRest = function() {
     clearInterval(restTimer);
     handleRestFinished();
 }
 
 function handleRestFinished() {
-    // Save the reps the user typed during rest
     let reps = document.getElementById('reps-done').value || 0;
     currentExercise.setsDone.push(reps);
 
     if (setCounter < currentExercise.targetSets) {
         setCounter++;
-        renderActiveSet(); // Loop back to next set
+        renderActiveSet();
     } else {
-        finishExercise(); // Sets complete
+        finishExercise();
     }
 }
 
-// 8. Finish Exercise Prompt
 function finishExercise() {
     currentWorkout.exercises.push(currentExercise);
     contentDiv.innerHTML = `
@@ -128,7 +145,6 @@ function finishExercise() {
     `;
 }
 
-// 9. Finish Workout & Save
 window.finishWorkout = function() {
     const now = new Date();
     currentWorkout.date = now.toLocaleDateString();
@@ -137,8 +153,7 @@ window.finishWorkout = function() {
     workouts.push(currentWorkout);
     localStorage.setItem('workouts', JSON.stringify(workouts));
     
-    renderHome(); // Go back to start
+    renderHome();
 }
 
-// Init
 renderHome();
