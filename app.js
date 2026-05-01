@@ -160,7 +160,13 @@ window.setupExercise = function() {
         <input type="number" id="e-sets" placeholder="Number of Sets">
         <input type="number" step="0.1" id="e-rest" placeholder="Rest (minutes)">
         <button class="btn" onclick="beginSets()">Start Movement</button>
-        <button class="btn btn-secondary" onclick="cancelWorkout()">Cancel Workout</button>
+        
+        <!-- ALLOW FINISHING WORKOUT IF CURRENT EXERCISE IS CANCELLED -->
+        ${currentWorkout.exercises.length > 0 ? 
+            `<button class="btn btn-secondary" style="background-color: #4b3070; color: white;" onclick="finishWorkout()">Finish & Log Session</button>` 
+            : ''}
+        
+        <button class="btn btn-secondary" onclick="cancelWorkout()">Cancel Entire Workout</button>
     `;
 }
 
@@ -185,7 +191,8 @@ function renderActiveSet() {
             <input type="number" id="reps-done" placeholder="Reps performed" autofocus>
             <button class="btn" onclick="submitSet()">Complete Set</button>
             
-            <!-- NEW CANCEL MOVEMENT BUTTON -->
+            <button class="btn btn-secondary" style="margin-top: 10px; background-color: #2e7d32; color: white;" onclick="finishExercise()">Finish Movement Early</button>
+
             <button class="btn btn-secondary" style="margin-top: 10px; background-color: #444;" onclick="cancelMovement()">Cancel Movement</button>
             
             <button class="btn btn-secondary" style="margin-top: 10px;" onclick="cancelWorkout()">Cancel Workout</button>
@@ -206,18 +213,20 @@ window.submitSet = function() {
 }
 
 function finishExercise() {
-    currentWorkout.exercises.push(currentExercise);
+    if (currentExercise && !currentWorkout.exercises.includes(currentExercise)) {
+        currentWorkout.exercises.push(currentExercise);
+    }
+    
     contentDiv.innerHTML = `
-        <h2>Exercise Complete!</h2>
+        <h2>Movement Saved!</h2>
         <button class="btn" onclick="setupExercise()">Add Another Movement</button>
         <button class="btn btn-secondary" onclick="finishWorkout()">Finish & Log Workout</button>
         <button class="btn btn-secondary" style="background-color: #662222; margin-top: 20px;" onclick="cancelWorkout()">Discard Workout</button>
     `;
 }
 
-// NEW FUNCTION: CANCEL ONLY THE CURRENT MOVEMENT
 window.cancelMovement = function() {
-    if(confirm("Discard this specific movement? You will return to the 'Add Exercise' screen.")) {
+    if(confirm("Discard this specific movement? Progress for this exercise will be lost.")) {
         currentExercise = null;
         setCounter = 0;
         setupExercise();
