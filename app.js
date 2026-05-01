@@ -153,20 +153,22 @@ window.setupExercise = function() {
     if(document.getElementById('w-title')) {
         currentWorkout.title = document.getElementById('w-title').value || 'Untitled Workout';
     }
+    
     contentDiv.innerHTML = `
         <h3>Add Exercise</h3>
         <input type="text" id="e-name" placeholder="Exercise Name">
         <input type="number" id="e-weight" placeholder="Weight (lbs)">
         <input type="number" id="e-sets" placeholder="Number of Sets">
         <input type="number" step="0.1" id="e-rest" placeholder="Rest (minutes)">
+        
         <button class="btn" onclick="beginSets()">Start Movement</button>
         
-        <!-- ALLOW FINISHING WORKOUT IF CURRENT EXERCISE IS CANCELLED -->
+        <button class="btn btn-secondary" onclick="cancelWorkout()">Cancel Workout</button>
+
+        <!-- FINISH WORKOUT BUTTON: Appears if there are saved movements -->
         ${currentWorkout.exercises.length > 0 ? 
-            `<button class="btn btn-secondary" style="background-color: #4b3070; color: white;" onclick="finishWorkout()">Finish & Log Session</button>` 
+            `<button class="btn btn-secondary" style="background-color: #2e7d32; color: white; margin-top: 10px;" onclick="finishWorkout()">Finish & Log Workout</button>` 
             : ''}
-        
-        <button class="btn btn-secondary" onclick="cancelWorkout()">Cancel Entire Workout</button>
     `;
 }
 
