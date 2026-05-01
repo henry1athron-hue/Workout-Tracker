@@ -16,11 +16,9 @@ function renderLogs() {
     const list = document.getElementById('workout-list');
     list.innerHTML = '';
     
-    // Most recent workouts at the top for the sidebar view
     const displayList = [...workouts].reverse();
 
     displayList.forEach((w, reversedIndex) => {
-        // Calculate the actual index in the original array for editing/deleting
         const originalIndex = workouts.length - 1 - reversedIndex;
         
         const li = document.createElement('li');
@@ -186,6 +184,10 @@ function renderActiveSet() {
             <p class="rest-hint">Rest Target: ${currentExercise.restTime} min</p>
             <input type="number" id="reps-done" placeholder="Reps performed" autofocus>
             <button class="btn" onclick="submitSet()">Complete Set</button>
+            
+            <!-- NEW CANCEL MOVEMENT BUTTON -->
+            <button class="btn btn-secondary" style="margin-top: 10px; background-color: #444;" onclick="cancelMovement()">Cancel Movement</button>
+            
             <button class="btn btn-secondary" style="margin-top: 10px;" onclick="cancelWorkout()">Cancel Workout</button>
         </div>
     `;
@@ -211,6 +213,15 @@ function finishExercise() {
         <button class="btn btn-secondary" onclick="finishWorkout()">Finish & Log Workout</button>
         <button class="btn btn-secondary" style="background-color: #662222; margin-top: 20px;" onclick="cancelWorkout()">Discard Workout</button>
     `;
+}
+
+// NEW FUNCTION: CANCEL ONLY THE CURRENT MOVEMENT
+window.cancelMovement = function() {
+    if(confirm("Discard this specific movement? You will return to the 'Add Exercise' screen.")) {
+        currentExercise = null;
+        setCounter = 0;
+        setupExercise();
+    }
 }
 
 window.cancelWorkout = function() {
