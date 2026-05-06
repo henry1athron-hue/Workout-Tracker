@@ -36,13 +36,20 @@ function renderLogs() {
                 </div>
             </div>
             <div id="log-detail-${originalIndex}" class="log-details" style="display:none; margin-top:10px;">
-                ${w.exercises.map(ex => `
-                    <div class="ex-detail">
-                        <strong>${ex.name}</strong><br>
-                        ${ex.weight}lbs | Rest: ${ex.restTime}m<br>
-                        Reps: ${ex.setsDone.join(', ')}
-                    </div>
-                `).join('')}
+                ${w.exercises.map(ex => {
+                    // Check if data structure uses old flat weights or new per-set weights
+                    const formatSets = ex.setsData 
+                        ? ex.setsData.map(s => `${s.weight}lbs x ${s.reps}`).join(', ')
+                        : `${ex.weight}lbs | Reps: ${ex.setsDone.join(', ')}`;
+
+                    return `
+                        <div class="ex-detail">
+                            <strong>${ex.name}</strong><br>
+                            <small>Rest: ${ex.restTime}m</small><br>
+                            ${formatSets}
+                        </div>
+                    `;
+                }).join('')}
             </div>
         `;
         list.appendChild(li);
@@ -76,24 +83,20 @@ window.openEditMode = function(index) {
     `;
 
     w.exercises.forEach((ex, exIdx) => {
+        // Backwards compatibility migration layer if editing older logs
+        if (!ex.setsData) {
+            ex.setsData = ex.setsDone.map(reps => ({ weight: ex.weight, reps: reps }));
+        }
+
         html += `
             <div class="edit-card">
                 <label>Exercise Name</label>
                 <input type="text" id="edit-ex-name-${exIdx}" value="${ex.name}">
+                <label>Rest (m)</label>
+                <input type="number" step="0.1" id="edit-ex-rest-${exIdx}" value="${ex.restTime}">
                 
-                <div style="display:flex; gap:10px;">
-                    <div style="flex:1">
-                        <label>Weight</label>
-                        <input type="number" id="edit-ex-weight-${exIdx}" value="${ex.weight}">
-                    </div>
-                    <div style="flex:1">
-                        <label>Rest (m)</label>
-                        <input type="number" step="0.1" id="edit-ex-rest-${exIdx}" value="${ex.restTime}">
-                    </div>
-                </div>
-
-                <label>Reps (Comma separated)</label>
-                <input type="text" id="edit-ex-reps-${exIdx}" value="${ex.setsDone.join(', ')}">
+                <label>Sets Data (Format: weight-reps, weight-reps)</label>
+                <input type="text" id="edit-ex-sets-${exIdx}" value="${ex.setsData.map(s => `${s.weight}-${s.reps}`).join(', ')}">
             </div>
         `;
     });
@@ -113,17 +116,24 @@ window.saveAllEdits = function(index) {
 
     w.exercises.forEach((ex, exIdx) => {
         ex.name = document.getElementById(`edit-ex-name-${exIdx}`).value;
-        ex.weight = document.getElementById(`edit-ex-weight-${exIdx}`).value;
         ex.restTime = document.getElementById(`edit-ex-rest-${exIdx}`).value;
-        const repInput = document.getElementById(`edit-ex-reps-${exIdx}`).value;
-        ex.setsDone = repInput.split(',').map(item => item.trim()).filter(item => item !== "");
+        
+        const setsString = document.getElementById(`edit-ex-sets-${exIdx}`).value;
+        // Parse the weight-reps format back into structural objects
+        ex.setsData = setsString.split(',').map(item => {
+            const parts = item.trim().split('-');
+            return {
+                weight: parts[0] || 0,
+                reps: parts[1] || 0
+            };
+        }).filter(s => s.reps !== 0);
     });
 
     saveAndRefresh();
     renderHome();
 }
 
-// --- 4. CORE APP FLOW & CANCEL LOGIC ---
+// --- 4. CORE APP FLOW & TRACKING ---
 function saveAndRefresh() {
     localStorage.setItem('workouts', JSON.stringify(workouts));
     renderLogs();
@@ -157,7 +167,7 @@ window.setupExercise = function() {
     contentDiv.innerHTML = `
         <h3>Add Exercise</h3>
         <input type="text" id="e-name" placeholder="Exercise Name">
-        <input type="number" id="e-weight" placeholder="Weight (lbs)">
+        <input type="number" id="e-weight" placeholder="Starting Weight (lbs)">
         <input type="number" id="e-sets" placeholder="Number of Sets">
         <input type="number" step="0.1" id="e-rest" placeholder="Rest (minutes)">
         
@@ -165,7 +175,6 @@ window.setupExercise = function() {
         
         <button class="btn btn-secondary" onclick="cancelWorkout()">Cancel Workout</button>
 
-        <!-- FINISH WORKOUT BUTTON: Appears if there are saved movements -->
         ${currentWorkout.exercises.length > 0 ? 
             `<button class="btn btn-secondary" style="background-color: #2e7d32; color: white; margin-top: 10px;" onclick="finishWorkout()">Finish & Log Workout</button>` 
             : ''}
@@ -175,10 +184,10 @@ window.setupExercise = function() {
 window.beginSets = function() {
     currentExercise = {
         name: document.getElementById('e-name').value || "Exercise",
-        weight: document.getElementById('e-weight').value || 0,
+        currentWeight: parseFloat(document.getElementById('e-weight').value) || 0,
         targetSets: parseInt(document.getElementById('e-sets').value) || 1,
         restTime: document.getElementById('e-rest').value || 0,
-        setsDone: []
+        setsData: [] // Structural replacement for legacy setsDone
     };
     setCounter = 1;
     renderActiveSet();
@@ -190,6 +199,12 @@ function renderActiveSet() {
             <h2>${currentExercise.name}</h2>
             <p class="set-info">Set ${setCounter} of ${currentExercise.targetSets}</p>
             <p class="rest-hint">Rest Target: ${currentExercise.restTime} min</p>
+            
+            <div style="background: #252525; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+                <span>Weight: <strong>${currentExercise.currentWeight} lbs</strong></span>
+                <button class="btn" style="width: auto; margin: 0; padding: 8px 15px; font-size: 0.9rem;" onclick="adjustWeightMidExercise()">Adjust Weight</button>
+            </div>
+
             <input type="number" id="reps-done" placeholder="Reps performed" autofocus>
             <button class="btn" onclick="submitSet()">Complete Set</button>
             
@@ -202,9 +217,22 @@ function renderActiveSet() {
     `;
 }
 
+window.adjustWeightMidExercise = function() {
+    const newWeight = prompt("Enter new weight for this set (lbs):", currentExercise.currentWeight);
+    if (newWeight !== null && !isNaN(newWeight) && newWeight.trim() !== "") {
+        currentExercise.currentWeight = parseFloat(newWeight);
+        renderActiveSet();
+    }
+}
+
 window.submitSet = function() {
-    let reps = document.getElementById('reps-done').value || 0;
-    currentExercise.setsDone.push(reps);
+    let reps = parseInt(document.getElementById('reps-done').value) || 0;
+    
+    // Save current weight alongside reps for precise parsing
+    currentExercise.setsData.push({
+        weight: currentExercise.currentWeight,
+        reps: reps
+    });
 
     if (setCounter < currentExercise.targetSets) {
         setCounter++;
