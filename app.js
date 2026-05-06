@@ -15,12 +15,10 @@ document.getElementById('toggle-sidebar').addEventListener('click', () => {
 function renderLogs() {
     const list = document.getElementById('workout-list');
     list.innerHTML = '';
-    
     const displayList = [...workouts].reverse();
 
     displayList.forEach((w, reversedIndex) => {
         const originalIndex = workouts.length - 1 - reversedIndex;
-        
         const li = document.createElement('li');
         li.className = 'workout-log-item';
         
@@ -37,16 +35,25 @@ function renderLogs() {
             </div>
             <div id="log-detail-${originalIndex}" class="log-details" style="display:none; margin-top:10px;">
                 ${w.exercises.map(ex => {
-                    // Check if data structure uses old flat weights or new per-set weights
-                    const formatSets = ex.setsData 
-                        ? ex.setsData.map(s => `${s.weight}lbs x ${s.reps}`).join(', ')
-                        : `${ex.weight}lbs | Reps: ${ex.setsDone.join(', ')}`;
+                    // Logic to determine if we use "Simple" or "Detailed" view
+                    const weights = ex.setsData ? ex.setsData.map(s => s.weight) : [ex.weight];
+                    const allWeightsSame = weights.every(v => v === weights[0]);
+
+                    let displayString = "";
+                    if (allWeightsSame) {
+                        // Simple Format: 135lbs | Reps: 10, 10, 10
+                        const reps = ex.setsData ? ex.setsData.map(s => s.reps) : ex.setsDone;
+                        displayString = `${weights[0]}lbs | Reps: ${reps.join(', ')}`;
+                    } else {
+                        // Detailed Format: 135x10, 125x10, 115x10
+                        displayString = ex.setsData.map(s => `${s.weight}x${s.reps}`).join(', ');
+                    }
 
                     return `
                         <div class="ex-detail">
                             <strong>${ex.name}</strong><br>
                             <small>Rest: ${ex.restTime}m</small><br>
-                            ${formatSets}
+                            ${displayString}
                         </div>
                     `;
                 }).join('')}
@@ -69,7 +76,7 @@ window.deleteWorkout = function(index) {
     }
 }
 
-// --- 3. EDIT MODE (IN-APP SUITE) ---
+// --- 3. EDIT MODE ---
 window.openEditMode = function(index) {
     sidebar.classList.remove('active');
     const w = workouts[index];
@@ -83,7 +90,6 @@ window.openEditMode = function(index) {
     `;
 
     w.exercises.forEach((ex, exIdx) => {
-        // Backwards compatibility migration layer if editing older logs
         if (!ex.setsData) {
             ex.setsData = ex.setsDone.map(reps => ({ weight: ex.weight, reps: reps }));
         }
@@ -94,8 +100,7 @@ window.openEditMode = function(index) {
                 <input type="text" id="edit-ex-name-${exIdx}" value="${ex.name}">
                 <label>Rest (m)</label>
                 <input type="number" step="0.1" id="edit-ex-rest-${exIdx}" value="${ex.restTime}">
-                
-                <label>Sets Data (Format: weight-reps, weight-reps)</label>
+                <label>Sets (weight-reps, weight-reps)</label>
                 <input type="text" id="edit-ex-sets-${exIdx}" value="${ex.setsData.map(s => `${s.weight}-${s.reps}`).join(', ')}">
             </div>
         `;
@@ -106,7 +111,6 @@ window.openEditMode = function(index) {
             <button class="btn btn-secondary" onclick="renderHome()">Cancel</button>
         </div>
     `;
-
     contentDiv.innerHTML = html;
 }
 
@@ -117,15 +121,10 @@ window.saveAllEdits = function(index) {
     w.exercises.forEach((ex, exIdx) => {
         ex.name = document.getElementById(`edit-ex-name-${exIdx}`).value;
         ex.restTime = document.getElementById(`edit-ex-rest-${exIdx}`).value;
-        
         const setsString = document.getElementById(`edit-ex-sets-${exIdx}`).value;
-        // Parse the weight-reps format back into structural objects
         ex.setsData = setsString.split(',').map(item => {
             const parts = item.trim().split('-');
-            return {
-                weight: parts[0] || 0,
-                reps: parts[1] || 0
-            };
+            return { weight: parseFloat(parts[0]) || 0, reps: parseInt(parts[1]) || 0 };
         }).filter(s => s.reps !== 0);
     });
 
@@ -133,7 +132,7 @@ window.saveAllEdits = function(index) {
     renderHome();
 }
 
-// --- 4. CORE APP FLOW & TRACKING ---
+// --- 4. CORE APP FLOW ---
 function saveAndRefresh() {
     localStorage.setItem('workouts', JSON.stringify(workouts));
     renderLogs();
@@ -163,21 +162,15 @@ window.setupExercise = function() {
     if(document.getElementById('w-title')) {
         currentWorkout.title = document.getElementById('w-title').value || 'Untitled Workout';
     }
-    
     contentDiv.innerHTML = `
         <h3>Add Exercise</h3>
         <input type="text" id="e-name" placeholder="Exercise Name">
         <input type="number" id="e-weight" placeholder="Starting Weight (lbs)">
         <input type="number" id="e-sets" placeholder="Number of Sets">
         <input type="number" step="0.1" id="e-rest" placeholder="Rest (minutes)">
-        
         <button class="btn" onclick="beginSets()">Start Movement</button>
-        
         <button class="btn btn-secondary" onclick="cancelWorkout()">Cancel Workout</button>
-
-        ${currentWorkout.exercises.length > 0 ? 
-            `<button class="btn btn-secondary" style="background-color: #2e7d32; color: white; margin-top: 10px;" onclick="finishWorkout()">Finish & Log Workout</button>` 
-            : ''}
+        ${currentWorkout.exercises.length > 0 ? `<button class="btn btn-secondary" style="background-color: #2e7d32; color: white; margin-top: 10px;" onclick="finishWorkout()">Finish & Log Workout</button>` : ''}
     `;
 }
 
@@ -187,7 +180,7 @@ window.beginSets = function() {
         currentWeight: parseFloat(document.getElementById('e-weight').value) || 0,
         targetSets: parseInt(document.getElementById('e-sets').value) || 1,
         restTime: document.getElementById('e-rest').value || 0,
-        setsData: [] // Structural replacement for legacy setsDone
+        setsData: []
     };
     setCounter = 1;
     renderActiveSet();
@@ -200,39 +193,26 @@ function renderActiveSet() {
             <p class="set-info">Set ${setCounter} of ${currentExercise.targetSets}</p>
             <p class="rest-hint">Rest Target: ${currentExercise.restTime} min</p>
             
-            <div style="background: #252525; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
-                <span>Weight: <strong>${currentExercise.currentWeight} lbs</strong></span>
-                <button class="btn" style="width: auto; margin: 0; padding: 8px 15px; font-size: 0.9rem;" onclick="adjustWeightMidExercise()">Adjust Weight</button>
-            </div>
+            <label style="font-size:0.8rem; color:var(--primary)">Current Weight (Adjust if needed)</label>
+            <input type="number" id="current-weight-input" value="${currentExercise.currentWeight}" style="margin-bottom:20px;">
 
+            <label style="font-size:0.8rem; color:var(--primary)">Reps Done</label>
             <input type="number" id="reps-done" placeholder="Reps performed" autofocus>
+            
             <button class="btn" onclick="submitSet()">Complete Set</button>
-            
             <button class="btn btn-secondary" style="margin-top: 10px; background-color: #2e7d32; color: white;" onclick="finishExercise()">Finish Movement Early</button>
-
             <button class="btn btn-secondary" style="margin-top: 10px; background-color: #444;" onclick="cancelMovement()">Cancel Movement</button>
-            
             <button class="btn btn-secondary" style="margin-top: 10px;" onclick="cancelWorkout()">Cancel Workout</button>
         </div>
     `;
 }
 
-window.adjustWeightMidExercise = function() {
-    const newWeight = prompt("Enter new weight for this set (lbs):", currentExercise.currentWeight);
-    if (newWeight !== null && !isNaN(newWeight) && newWeight.trim() !== "") {
-        currentExercise.currentWeight = parseFloat(newWeight);
-        renderActiveSet();
-    }
-}
-
 window.submitSet = function() {
-    let reps = parseInt(document.getElementById('reps-done').value) || 0;
+    const reps = parseInt(document.getElementById('reps-done').value) || 0;
+    const weight = parseFloat(document.getElementById('current-weight-input').value) || 0;
     
-    // Save current weight alongside reps for precise parsing
-    currentExercise.setsData.push({
-        weight: currentExercise.currentWeight,
-        reps: reps
-    });
+    currentExercise.currentWeight = weight; // Update current weight for next set default
+    currentExercise.setsData.push({ weight: weight, reps: reps });
 
     if (setCounter < currentExercise.targetSets) {
         setCounter++;
@@ -246,7 +226,6 @@ function finishExercise() {
     if (currentExercise && !currentWorkout.exercises.includes(currentExercise)) {
         currentWorkout.exercises.push(currentExercise);
     }
-    
     contentDiv.innerHTML = `
         <h2>Movement Saved!</h2>
         <button class="btn" onclick="setupExercise()">Add Another Movement</button>
@@ -256,17 +235,15 @@ function finishExercise() {
 }
 
 window.cancelMovement = function() {
-    if(confirm("Discard this specific movement? Progress for this exercise will be lost.")) {
+    if(confirm("Discard this specific movement?")) {
         currentExercise = null;
-        setCounter = 0;
         setupExercise();
     }
 }
 
 window.cancelWorkout = function() {
-    if(confirm("Discard this current workout? Progress will not be saved.")) {
+    if(confirm("Discard this entire workout?")) {
         currentWorkout = null;
-        currentExercise = null;
         renderHome();
     }
 }
@@ -275,11 +252,9 @@ window.finishWorkout = function() {
     const now = new Date();
     currentWorkout.date = now.toLocaleDateString();
     currentWorkout.time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
     workouts.push(currentWorkout);
     saveAndRefresh();
     renderHome();
 }
 
-// Initial Boot
 renderHome();
